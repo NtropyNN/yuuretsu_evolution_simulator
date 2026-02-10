@@ -226,7 +226,10 @@ const PIX = (function() {
 						this[x + y * PIX._width] = obj;
 						this._size += 1;
 					} else {
-						throw "cell " + x + ":" + y + " is already taken by " + this.getAt(x, y);
+						let str = "cell " + x + ":" + y + " is already taken by " + this.getAt(x, y);
+						console.error(str);
+						debugger;
+						throw str
 					}
 				}
 			}
@@ -258,7 +261,10 @@ const PIX = (function() {
 					}
 					return [x, y];
 				} else {
-					throw 'grid has no empty cells';
+					let str = 'grid has no empty cells';
+					console.error(str);
+					debugger;
+					throw str
 				}
 			}
 		},
@@ -297,7 +303,10 @@ const PIX = (function() {
 				} else if (typeof color == "string") {
 					return color;
 				}
-				throw `PIX.color.get error: ${color}`;
+				let str = `PIX.color.get error: ${color}`;
+				console.error(str);
+				debugger;
+				throw str
 			},
 			random(min = 0, max = 255) {
 				let color = [];

@@ -5,6 +5,7 @@ const SIM = {};
 SIM.px = Math.round(window.innerHeight / 120);
 SIM.width = Math.floor((window.innerWidth - 200) / SIM.px);
 SIM.height = Math.floor((window.innerHeight - 30) / SIM.px);
+SIM.center = SIM.height / 2;
 
 PIX.setup('sim', SIM.width, SIM.height, SIM.px);
 
@@ -34,18 +35,19 @@ class Obj extends PIX.Pixel {
 		if (Math.round(this.age) % 20 == 0) this.draw();
 	}
 	fall(frequency) {
-		if (this.age % frequency == 0) {
-			let [x, y] = [this.x, this.y + 1];
+		if (this.age % frequency == 0 && (this.y > 0 && this.y < SIM.height - 1)) {
+			let dir = (this.y > SIM.center) ? 1 : - 1
+			let [x, y] = [this.x, this.y + dir];
 			if (Math.random() > 0.1 && !SIM.world.getAt(x, y)) {
 				this.moveTo(x, y);
 			} else {
 				if (Math.random() > 0.5) {
-					let [x, y] = [this.x - 1, this.y+1];
+					let [x, y] = [this.x - 1, this.y + dir];
 					if (!SIM.world.getAt(x, y)) {
 						this.moveTo(x, y);
 					}
 				} else {
-					let [x, y] = [this.x + 1, this.y+1];
+					let [x, y] = [this.x + 1, this.y + dir];
 					if (!SIM.world.getAt(x, y)) {
 						this.moveTo(x, y);
 					}
@@ -58,6 +60,7 @@ class Obj extends PIX.Pixel {
 
 class DeadBot extends Obj {
 	constructor(bot) {
+		SIM.amountOfDeads += 1;
 		let ch = calcLight(bot.y) * 127;
 		let color = PIX.color.mixing([50, 50, 80], bot.color, 0.25);
 		// color = PIX.color.mixing(color, [ch/3, ch/2, ch+15], 0.25);
@@ -75,6 +78,7 @@ class DeadBot extends Obj {
 		if (this.age >= 100000 || this.energy <= 0) {
 			this.clear(this._canvas);
 			SIM.world.clearAt(this.x, this.y);
+			SIM.amountOfDeads -= 1;
 			delete SIM.deadBots[this._id];
 			return;
 		}
@@ -365,27 +369,27 @@ function showDna(bot, absX, absY) {
 			let num = bot.dna[x+y*Math.sqrt(bot.dna.length)];
 			let text;
 			switch (num) {
-				case 0:
+				case 0: // размножается
 					text = 'MU';
 					canvas.ctx.fillStyle = PIX.color.get([200, 200, 200]);
 					break;
-				case 1:
+				case 1: // поворачивается
 					text = 'RO';
 					canvas.ctx.fillStyle = PIX.color.get([200, 200, 200]);
 					break;
-				case 2:
+				case 2: // фотосинтезирует
 					text = 'PH';
 					canvas.ctx.fillStyle = PIX.color.get([100, 255, 100]);
 					break;
-				case 3:
+				case 3: // ворует энергию
 					text = 'AT';
 					canvas.ctx.fillStyle = PIX.color.get([255, 100, 100]);
 					break;
-				case 4:
+				case 4: // плавает
 					text = 'MO';
 					canvas.ctx.fillStyle = PIX.color.get([255, 255, 255]);
 					break;
-				case 5:
+				case 5: // ест труп
 					text = 'ED';
 					canvas.ctx.fillStyle = PIX.color.get([100, 100, 255]);
 					break;
@@ -401,7 +405,7 @@ function showDna(bot, absX, absY) {
 
 
 function calcLight(y) {
-	return 10**(-0.03 * y);
+	return 10**(-0.03 * Math.abs(y - SIM.center));
 }
 
 
@@ -409,8 +413,10 @@ SIM.world = new PIX.Grid();
 SIM.bots = {};
 SIM.deadBots = {};
 SIM.graphicBots = new PIX.Graphic2(50);
+SIM.graphicDeads = new PIX.Graphic2(50);
 SIM.graphicBirths = new PIX.Graphic2(50);
 SIM.graphicFps = new PIX.Graphic2(50);
+SIM.graphicCps = new PIX.Graphic2(50);
 const CNV = {
 	background: new PIX.Canvas(),
 	world: new PIX.Canvas(),
@@ -427,15 +433,9 @@ for (let y = 0; y < SIM.height; y++) {
 	// PIX.draw.rect(0, y * SIM.px, SIM.width * SIM.px, SIM.px, [ch, ch, ch], CNV.background);
 }
 
-
-for (let x = 0; x < SIM.width; x++) {
-	let wall = new Obj(x, SIM.height - 1, [150, 150, 150]);
-	wall.info = [`Стена`];
-}
-
-
 SIM.amountOfBots = 0;
 SIM.amountOfBirths = 0;
+SIM.amountOfDeads = 0;
 for (let i = 0; i < 1000; i++) {
 	let [x, y] = SIM.world.getRandomEmpty();
 	let bot = new Bot(x, y);
@@ -457,30 +457,40 @@ for (let i = 0; i < 1000; i++) {
 
 let start = Date.now();
 let fps = 0;
+let cps = 0;
 SIM.cycle = 0;
-PIX.loop(function() {
-	fps += 1;
+let loopFunc = function() {
+	cps += 1;
 	SIM.nextBots = {};
 	for (let id in SIM.bots)     SIM.bots[id].live();
 	for (let id in SIM.deadBots) SIM.deadBots[id].live();
 	SIM.bots = SIM.nextBots;
-
+};
+let mainFunc = function() {
+	fps += 1;
+	loopFunc();
 	if (SIM.cycle % 50 == 0) SIM.graphicBots.pushData(SIM.amountOfBots / 300);
+	if (SIM.cycle % 50 == 0) SIM.graphicDeads.pushData(SIM.amountOfDeads / 300);
 	if (SIM.cycle % 50 == 0) SIM.graphicBirths.pushData(SIM.amountOfBirths);
 	if (Date.now() - start >= 1000) {
 		SIM.graphicFps.pushData(fps / 2);
+		SIM.graphicCps.pushData(cps / 2);
 		start = Date.now();
 		SIM.fps = fps;
+		SIM.cps = cps;
 		fps = 0;
+		cps = 0;
 	}
 
 	PIX.draw.fill([100, 100, 100]);
 	CNV.background.draw();
 	CNV.world.draw();
 	SIM.graphicBots.draw(`боты: ${SIM.amountOfBots}`);
+	SIM.graphicDeads.draw(`мертвые: ${SIM.amountOfDeads}`);
 	SIM.graphicBirths.draw(`рождаемость: ${SIM.amountOfBirths}`);
 	SIM.amountOfBirths = 0;
 	SIM.graphicFps.draw(`fps: ${SIM.fps}`);
+	SIM.graphicCps.draw(`cps: ${SIM.cps}`);
 	PIX.draw.text(0, 0, [
 		`время: ${SIM.cycle}`
 	]);
@@ -509,4 +519,10 @@ PIX.loop(function() {
 	}
 
 	SIM.cycle += 1;
-});
+};
+PIX.loop(mainFunc);
+let loopFnc = function() {
+    loopFunc();
+    setTimeout(loopFnc, 0);
+};
+loopFnc();
