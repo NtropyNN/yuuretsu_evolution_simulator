@@ -417,8 +417,14 @@ function showDna(bot, absX, absY) {
 }
 
 
+const calcLightCache = {};
 function calcLight(y) {
-	return 10**(-0.03 * Math.abs(y - SIM.center));
+    if (calcLightCache[y] !== undefined) {
+        return calcLightCache[y];
+    }
+    const result = 10**(-0.03 * Math.abs(y - SIM.center));
+    calcLightCache[y] = result;
+    return result;
 }
 
 
