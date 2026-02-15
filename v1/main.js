@@ -79,6 +79,11 @@ class DeadBot extends Obj {
 			this.clear(this._canvas);
 			SIM.world.clearAt(this.x, this.y);
 			SIM.amountOfDeads -= 1;
+			/*
+			if (SIM.selected != null && SIM.selected.id == this._id) {
+				SIM.selected.id = null;
+			}
+			*/
 			delete SIM.deadBots[this._id];
 			return;
 		}
@@ -264,7 +269,15 @@ class Bot extends Obj {
 		SIM.amountOfBots -= 1;
 		this.clear(this._canvas);
 		SIM.world.clearAt(this.x, this.y);
-		assign(new DeadBot(this), SIM.deadBots)
+		/*
+		if (SIM.selected != null && SIM.selected.id == this._id) {
+			let dead = new DeadBot(this);
+			assign(dead, SIM.deadBots);
+			SIM.selected.id = dead._id;
+		} else {
+			*/
+			assign(new DeadBot(this), SIM.deadBots);
+		// }
 	}
 	moveDnaPos(n) {
 		// this.mixColor([50, 50, 50]);
@@ -433,6 +446,15 @@ for (let y = 0; y < SIM.height; y++) {
 	// PIX.draw.rect(0, y * SIM.px, SIM.width * SIM.px, SIM.px, [ch, ch, ch], CNV.background);
 }
 
+/*
+for (let x = 0; x < SIM.width; x++) {
+	let wall = new Obj(x, SIM.height - 1, [150, 150, 150]);
+	wall.info = [`Стена`];
+	let wall2 = new Obj(x, 0, [150, 150, 150]);
+	wall2.info = [`Стена`];
+}
+*/
+
 SIM.amountOfBots = 0;
 SIM.amountOfBirths = 0;
 SIM.amountOfDeads = 0;
@@ -459,6 +481,7 @@ let start = Date.now();
 let fps = 0;
 let cps = 0;
 SIM.cycle = 0;
+// SIM.selected = {};
 let loopFunc = function() {
 	cps += 1;
 	SIM.nextBots = {};
@@ -495,11 +518,35 @@ let mainFunc = function() {
 		`время: ${SIM.cycle}`
 	]);
 
-	if (PIX.mouse.overGrid) {
+	if (PIX.mouse.overGrid /* || (SIM.selected != null && SIM.selected.id != null) */) {
+		let here;
 		let [gX, gY] = [PIX.mouse.gridX, PIX.mouse.gridY];
-		let [x, y] = [PIX.mouse.x, PIX.mouse.y];
-		let here = SIM.world.getAt(gX, gY);
-		if (here instanceof Obj) {
+		let x, y;
+		/*
+		if ((SIM.selected == null || SIM.selected.id == null) && PIX.mouse.button !== null) {
+			let selectedBot = SIM.world.getAt(gX, gY);
+			if (selectedBot != null) {
+				SIM.selected.id = selectedBot._id;
+				([x, y] = [selectedBot.x, selectedBot.y]);
+			}
+		}
+		if ((SIM.selected != null && SIM.selected.id != null)) {
+			here = SIM.bots[SIM.selected.id];
+			if (here == null) {
+				here = SIM.deadBots[SIM.selected.id];
+			}
+		}
+		if (here == null) {
+		*/
+			([x, y] = [PIX.mouse.x, PIX.mouse.y]);
+			here = SIM.world.getAt(gX, gY);
+			/*
+			if ((SIM.selected != null && SIM.selected.id != null)) {
+				SIM.selected.id = null;
+			}
+			*/
+		// }
+		if (here && here instanceof Obj) {
 			let pX, pY;
 			if (y < here.info.length * 15 + 3 - 10) pY = 0;
 			else pY = y - here.info.length * 15 + 3 - 10;
