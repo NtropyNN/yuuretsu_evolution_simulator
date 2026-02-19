@@ -6,6 +6,7 @@ SIM.px = Math.round(window.innerHeight / 120);
 SIM.width = Math.floor((window.innerWidth - 200) / SIM.px);
 SIM.height = Math.floor((window.innerHeight - 30) / SIM.px);
 SIM.center = SIM.height / 2;
+SIM.middle = SIM.width / 2;
 
 PIX.setup('sim', SIM.width, SIM.height, SIM.px);
 
@@ -93,6 +94,10 @@ class DeadBot extends Obj {
 	}
 }
 
+//   0 1 2
+//   7   3
+//   6 5 4
+let coords = [[-1, -1], [0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0]];
 
 class Bot extends Obj {
 	constructor(x, y, parent) {
@@ -148,10 +153,6 @@ class Bot extends Obj {
 		];
 	}
 	narrow2coords(narrow = this.narrow) {
-		//   0 1 2
-		//   7   3
-		//   6 5 4
-		let coords = [[-1, -1], [0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0]];
 		let x = this.x + coords[narrow][0];
 		let y = this.y + coords[narrow][1];
 		return [x, y];
@@ -290,7 +291,10 @@ class Bot extends Obj {
 		this.moveDnaPos(this.dna[this.dnaPos]);
 	}
 	live() {
-
+		if (Math.abs(this.x - SIM.middle) < 1 && Math.random() < 0.5) {
+			this.dna = mutatedDna(this.dna);
+			this.mixColor([255, 255, 0]);
+		}
 		if (Math.round(this.age) % 60 == 0) this.draw();
 
 		let cycle = 0;
@@ -446,7 +450,7 @@ for (let y = 0; y < SIM.height; y++) {
 	let ch = calcLight(y) * 127;
 	// ch = 255;
 	PIX.draw.rect(0, y * SIM.px, SIM.width * SIM.px, SIM.px, [ch/3, ch/2, ch+15], CNV.background);
-
+	PIX.draw.rect(SIM.width * SIM.px / 2, 0, SIM.px, SIM.height * SIM.px, [255, 0, 0], CNV.background);
 	// let n = 1 - calcLight(y);
 	// let ch = n * 255;
 	// PIX.draw.rect(0, y * SIM.px, SIM.width * SIM.px, SIM.px, [ch, ch, ch], CNV.background);
@@ -578,4 +582,64 @@ let loopFnc = function() {
     loopFunc();
     setTimeout(loopFnc, 0);
 };
+// Функция для экспорта геномов в JSON файл
+function exportGenomes() {
+    let genomes = [];
+    for (let id in SIM.bots) {
+        let bot = SIM.bots[id];
+        genomes.push({
+            dna: bot.dna,
+            x: bot.x,
+            y: bot.y,
+            energy: bot.energy,
+            age: bot.age
+        });
+    }
+    
+    let dataStr = JSON.stringify(genomes, null, 2);
+    let dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    
+    let exportFileDefaultName = 'genomes.json';
+    
+    let linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+}
+
+// Функция для импорта геномов из JSON файла
+function importGenomes() {
+    let input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json';
+    
+    input.onchange = e => {
+        let file = e.target.files[0];
+        let reader = new FileReader();
+        reader.readAsText(file, 'UTF-8');
+        
+        reader.onload = readerEvent => {
+            let content = readerEvent.target.result;
+            let genomes = JSON.parse(content);
+            
+            // Очищаем текущих ботов
+            // SIM.world = new PIX.Grid();
+            // SIM.bots = {};
+            // SIM.amountOfBots = 0;
+            
+            // Создаем ботов из импортированных геномов
+            for (let i = 0; i < genomes.length; i++) {
+                let genome = genomes[i];
+				let [x, y] = SIM.world.getRandomEmpty();
+                let bot = new Bot(x, y);
+                bot.dna = genome.dna;
+                // bot.energy = genome.energy;
+                // bot.age = genome.age;
+                assign(bot, SIM.bots);
+            }
+        }
+    }
+    
+    input.click();
+}
 loopFnc();
